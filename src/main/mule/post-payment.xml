@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:salesforce="http://www.mulesoft.org/schema/mule/salesforce" xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/salesforce http://www.mulesoft.org/schema/mule/salesforce/current/mule-salesforce.xsd">
+	<flow name="post-paymentFlow" doc:id="b45805ea-6c82-4701-a6a6-7bc68f3719fb" >
+		<logger level="INFO" doc:name="Logger" doc:id="d7a1fd66-9606-49e5-bce2-145aae1ac2b2" />
+		<ee:transform doc:name="Transform Message" doc:id="6dc16481-2411-47ce-840d-36ece7daa55a" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+vars.orgPayload map (data, index) ->
+{
+    "Account": lookup('lookupFlow', {AccountId : payload},10000000),
+    "Processing Mode": data."Processing Mode",
+    "Status": data.Status,
+    "Type": data.Type,
+    "Amount": data.Amount,
+    "Id" : data.Id
+}
+]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<choice doc:name="Choice" doc:id="2528fece-0810-4c21-bcdf-07a6f6ab699c" >
+			<when expression='#[payload[0].Account != "No account found"]' >
+				<http:request method='${payment.system.method2}' doc:name="payment-sys-api" doc:id="d48913b3-cde9-4d2a-9e1a-0bb9b05d0e7d" config-ref="payment_Sys_Request_configuration" responseTimeout="#[10000000000000]" path="${payment.system.path}">
+					<http:headers ><![CDATA[#[output application/java
+---
+{
+	client_secret : 123,
+	client_id : 123
+}]]]></http:headers>
+				</http:request>
+				<logger level="INFO" doc:name="Logger" doc:id="7cabdc0a-31c0-412c-8339-66f832b5cb12" message="#[payload]" />
+				<ee:transform doc:name="Transform Message" doc:id="1eb5914a-db75-4d68-91e1-aded9544d3e2" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+if (payload != "DUPLICATE") if ((payload[0].created is true) and payload[0].success is true) {message : "Item successfully created",
+  Id : payload[0].Id
+} 
+else if ((payload[0].created is false) and payload[0].success is true) {message : "Item successfully updated",
+  Id : payload[0].Id} 
+else {message : payload[0].errors}
+	else {message : payload}
+]]></ee:set-payload>
+					</ee:message>
+					<ee:variables >
+						<ee:set-variable variableName="statusCode" ><![CDATA[%dw 2.0
+output application/java
+---
+if (payload != "DUPLICATE") if ((payload[0].created is true) and payload[0].success is true) 201 
+else if ((payload[0].created is false) and payload[0].success is true) 200
+else 500 
+else 500]]></ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</when>
+			<otherwise >
+				<ee:transform doc:name="Transform Message" doc:id="a54e9298-bc55-4bae-a88e-800f42d690cf" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+"No account found"]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</otherwise>
+		</choice>
+	</flow>
+</mule>

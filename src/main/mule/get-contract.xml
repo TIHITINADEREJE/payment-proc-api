@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd">
+	<flow name="get-paymentFlow" doc:id="7eac5428-9b0f-4510-bc6c-9f989268700a" >
+		<logger level="INFO" doc:name="Before request" doc:id="50c2973c-f687-4438-9a6c-0a6dec40863f" message="Before request" />
+		<http:request method="${payment.system.method1}" doc:name="contract-sys-api" doc:id="1a1b861c-b8b6-494c-9ef6-828c699bc6fd" config-ref="payment_Sys_Request_configuration" path="${payment.system.path}" responseTimeout="#[10000000]">
+			<http:headers ><![CDATA[#[output application/java
+---
+{
+	client_secret : 123,
+	client_id : 123
+}]]]></http:headers>
+			<http:query-params ><![CDATA[#[output application/java
+---
+{
+	Id : vars.Id
+}]]]></http:query-params>
+		</http:request>
+		<logger level="INFO" doc:name="After request" doc:id="d9d08938-47f4-497d-abac-20766bb0cec0" message="After request" />
+	</flow>
+</mule>

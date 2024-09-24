@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:salesforce="http://www.mulesoft.org/schema/mule/salesforce"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/salesforce http://www.mulesoft.org/schema/mule/salesforce/current/mule-salesforce.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+	<flow name="lookupFlow" doc:id="43d6aaff-db04-4e0c-8e6e-c3417c3b5737" >
+		<salesforce:query doc:name="Query" doc:id="ad92088e-d22c-4a60-8f60-6f062a7f03f3" config-ref="Salesforce_Config" readTimeoutUnit="DAYS" >
+			<salesforce:salesforce-query ><![CDATA[SELECT Id FROM Account where Name = :Name]]></salesforce:salesforce-query>
+			<salesforce:parameters ><![CDATA[#[%dw 2.0
+output application/json
+---
+{
+	Name : "'" ++ vars.orgPayload[0].Account ++ "'"
+}]]]></salesforce:parameters>
+		</salesforce:query>
+		<choice doc:name="Choice" doc:id="b10af54d-43ac-45bd-b972-69d64ebea20f" >
+			<when expression="#[sizeOf(payload) != 0]" >
+				<ee:transform doc:name="Transform Message" doc:id="ab5f164f-5d3a-4592-9082-745b087436b6" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+payload[0].Id as String]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+				<logger level="INFO" doc:name="Logger" doc:id="8daf3466-cec0-4206-ae4c-435aae9bebd7" message='#[%dw 2.0&#10;output application/json&#10;---&#10;{&#10;	message : "ID from Account Salesforce retrieved.",&#10;	content : {Id : payload}&#10;}]' />
+			</when>
+			<otherwise >
+				<ee:transform doc:name="Transform Message" doc:id="9900824e-85df-47d4-947d-6583e13c4efe" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+"No account found"]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+				<logger level="INFO" doc:name="Logger" doc:id="92338280-34c5-4aa3-a05a-66faf33639f3" message='#[%dw 2.0&#10;output application/json&#10;---&#10;{&#10;	message : "No account found"&#10;}]' />
+			</otherwise>
+		</choice>
+		<error-handler >
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="169f7d51-c5b3-4d5b-ac67-edd5b1bb05b7" type="SALESFORCE:CONNECTIVITY, SALESFORCE:INVALID_INPUT" >
+				<ee:transform doc:name="Transform Message" doc:id="75a27ec8-75c8-46b1-88b6-23d5d73f812d" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+"Error on Salesforce"]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</on-error-propagate>
+		</error-handler>
+	</flow>
+</mule>
